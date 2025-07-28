@@ -1,0 +1,8 @@
+{
+    "version": "1.0.0",
+    "repo_owner": "Architect423",
+    "repo_name": "AutoParse",
+    "auto_update_enabled": true,
+    "check_on_startup": true,
+    "update_check_delay_seconds": 2
+}

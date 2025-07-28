@@ -11,6 +11,7 @@ import keyboard
 import pyperclip
 import re
 from tesseract_manager import TesseractManager
+from auto_updater import check_for_updates_on_startup
 
 class ScreenCalibrator:
     def __init__(self):
@@ -34,6 +35,9 @@ class ScreenCalibrator:
         
         # Load existing calibration and settings
         self.load_calibration()
+        
+        # Check for updates from GitHub
+        check_for_updates_on_startup()
         
         # Start hotkey listener in background
         self.start_hotkey_listener()
@@ -420,60 +424,83 @@ Output format: Customer Name, Vehicle Make/Model, Plate""")
         text = text.strip()
         print(f"Raw OCR text: '{text}'")  # Debug output
         
-        # Handle the actual OCR format which appears to be multi-line without field labels
-        # Format: Line 1: Name, Line 2: Model, Line 3: Plate, Line 4: Owner:Value
         import re
         
         lines = [line.strip() for line in text.split('\n') if line.strip()]
         print(f"OCR lines: {lines}")  # Debug output
         
-        # First try to find Owner field with label
-        owner_pattern = r'Owner:\s*(.+)'
-        owner_match = re.search(owner_pattern, text, re.IGNORECASE)
-        if owner_match:
-            owner_text = owner_match.group(1).strip()
-            
-            # Fix common spacing issues in owner names
-            # Look for patterns like "BabaBooey" and split into "Baba Booey"
-            if re.search(r'[a-z][A-Z]', owner_text):
-                # Find positions where lowercase is followed by uppercase
-                owner_text = re.sub(r'([a-z])([A-Z])', r'\1 \2', owner_text)
-                print(f"Fixed owner spacing: '{owner_text}'")
-            
-            data['Owner'] = owner_text
-            print(f"Parsed Owner: '{data['Owner']}'")
+        # Define field labels to look for
+        field_labels = ['name', 'model', 'plate', 'owner']
         
-        # Now handle lines with field labels (Name:, Model:, Plate:)
-        for line in lines:
-            if re.match(r'Owner:', line, re.IGNORECASE):
-                continue  # Already handled above
+        # Parse multi-line fields
+        i = 0
+        while i < len(lines):
+            line = lines[i]
             
-            # Extract field name and value from "Field:Value" format
+            # Check if this line contains a field label
             if ':' in line:
                 field_name, field_value = line.split(':', 1)
                 field_name = field_name.strip().lower()
                 field_value = field_value.strip()
                 
-                if field_name == 'name':
-                    data['Name'] = field_value
-                    print(f"Parsed Name: '{data['Name']}'")
+                # If this is a recognized field, collect all lines until the next field
+                if field_name in field_labels:
+                    # Start with the value on the same line as the field label
+                    full_value = field_value
                     
-                elif field_name == 'model':
-                    # Fix common spacing issues in model names
-                    if re.search(r'[a-z][A-Z]', field_value):
-                        field_value = re.sub(r'([a-z])([A-Z])', r'\1 \2', field_value)
-                        print(f"Fixed model spacing: '{field_value}'")
+                    # Look ahead to collect continuation lines
+                    j = i + 1
+                    while j < len(lines):
+                        next_line = lines[j]
+                        
+                        # Stop if we hit another field label
+                        if ':' in next_line:
+                            next_field = next_line.split(':', 1)[0].strip().lower()
+                            if next_field in field_labels:
+                                break
+                        
+                        # This line is a continuation of the current field
+                        if full_value:
+                            full_value += ' ' + next_line
+                        else:
+                            full_value = next_line
+                        j += 1
                     
-                    data['Model'] = field_value
-                    print(f"Parsed Model: '{data['Model']}'")
+                    # Store the complete field value
+                    if field_name == 'name':
+                        data['Name'] = full_value
+                        print(f"Parsed Name: '{data['Name']}'")
+                        
+                    elif field_name == 'model':
+                        # Fix common spacing issues in model names
+                        if re.search(r'[a-z][A-Z]', full_value):
+                            full_value = re.sub(r'([a-z])([A-Z])', r'\1 \2', full_value)
+                            print(f"Fixed model spacing: '{full_value}'")
+                        
+                        data['Model'] = full_value
+                        print(f"Parsed Model: '{data['Model']}'")
+                        
+                    elif field_name == 'plate':
+                        data['Plate'] = full_value
+                        print(f"Parsed Plate: '{data['Plate']}'")
+                        
+                    elif field_name == 'owner':
+                        # Fix common spacing issues in owner names
+                        if re.search(r'[a-z][A-Z]', full_value):
+                            full_value = re.sub(r'([a-z])([A-Z])', r'\1 \2', full_value)
+                            print(f"Fixed owner spacing: '{full_value}'")
+                        
+                        data['Owner'] = full_value
+                        print(f"Parsed Owner: '{data['Owner']}'")
                     
-                elif field_name == 'plate':
-                    data['Plate'] = field_value
-                    print(f"Parsed Plate: '{data['Plate']}'")
+                    # Skip the lines we've already processed
+                    i = j - 1
+            
+            i += 1
         
-        # Fallback: try line-by-line parsing if regex didn't work
+        # Fallback: try line-by-line parsing if no fields were found
         if not any(data.values()):
-            lines = text.split('\n')
+            print("Fallback parsing: No field labels found, trying line-by-line")
             for line in lines:
                 line = line.strip()
                 if not line:
