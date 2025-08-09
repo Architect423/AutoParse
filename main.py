@@ -383,7 +383,7 @@ Output format: Customer Name, Vehicle Make/Model, Plate""")
                 raise Exception("Failed to capture screenshot after multiple attempts")
             
             # Perform OCR with gaming-optimized settings
-            text = pytesseract.image_to_string(screenshot, config='--psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789: ')
+            text = pytesseract.image_to_string(screenshot, config='--psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789:()[]-/ ')
             
             # Parse the text for required fields
             parsed_data = self.parse_vehicle_data(text)
@@ -476,6 +476,14 @@ Output format: Customer Name, Vehicle Make/Model, Plate""")
                         if re.search(r'[a-z][A-Z]', full_value):
                             full_value = re.sub(r'([a-z])([A-Z])', r'\1 \2', full_value)
                             print(f"Fixed model spacing: '{full_value}'")
+                        
+                        # Correct common OCR confusion where '(B)' is read as '8' (e.g., 'SX6R8')
+                        # Only attempt when there are no parentheses already present
+                        if '(' not in full_value and ')' not in full_value:
+                            corrected = re.sub(r'\b([A-Z]{2,}\d+[A-Z]?)8\b', r'\1 (B)', full_value)
+                            if corrected != full_value:
+                                print(f"Corrected model '(B)' misread: '{full_value}' -> '{corrected}'")
+                                full_value = corrected
                         
                         data['Model'] = full_value
                         print(f"Parsed Model: '{data['Model']}'")
