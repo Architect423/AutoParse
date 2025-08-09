@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('tesseract_manager.py', '.')]
+datas = [('tesseract_manager.py', '.'), ('version_config.json', '.')]
 binaries = []
 hiddenimports = ['PIL', 'PIL.Image', 'PIL.ImageTk', 'PIL.ImageGrab', 'pytesseract', 'pyautogui', 'keyboard', 'pyperclip', 'tkinter', 'tkinter.messagebox', 'tkinter.ttk']
 tmp_ret = collect_all('PIL')
