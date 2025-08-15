@@ -557,10 +557,11 @@ Output format: Customer Name, Vehicle Make/Model, Plate""")
         plate = data.get('Plate', '')
         
         return f"""```
-Customer Name: {customer_name}
-Vehicle | [Make/Model]: {vehicle_make_model}
-Plate: {plate}
-```"""
+ Customer Name: {customer_name}
+ Vehicle | [Make/Model]: {vehicle_make_model}
+ Plate: {plate}
+ Shop: Auto Exotic
+ ```"""
     
     def on_closing(self):
         """Handle application closing"""
